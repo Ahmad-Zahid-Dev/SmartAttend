@@ -314,6 +314,7 @@
         let browserCaptureVideo = null;
         let browserCaptureStream = null;
         let browserCaptureInterval = null;
+        let browserCaptureActive = false;
 
         // Initialization
         window.addEventListener('load', async () => {
@@ -326,7 +327,12 @@
 
             const regFeedEl = document.getElementById('reg-feed');
             if (regFeedEl) {
-                regFeedEl.onerror = () => handleCameraError();
+                // Bind legacy image-feed error handler only in server camera mode.
+                if (captureRuntimeConfig.camera_mode !== 'browser') {
+                    regFeedEl.onerror = () => handleCameraError();
+                } else {
+                    regFeedEl.onerror = null;
+                }
             }
 
             await loadMetadata();
@@ -500,12 +506,16 @@
             const loading = document.getElementById('feed-loading');
             const statusMsg = document.getElementById('capture-status-msg');
             const imgFeed = document.getElementById('reg-feed');
+            const errorUi = document.getElementById('camera-error-ui');
             const video = ensureBrowserCaptureVideo();
 
             if (!video) {
                 showToast('Camera container not available. Reload and try again.');
                 return;
             }
+
+            browserCaptureActive = true;
+            if (errorUi) errorUi.style.display = 'none';
 
             if (browserCaptureStream) {
                 browserCaptureStream.getTracks().forEach(track => track.stop());
@@ -522,6 +532,7 @@
             video.srcObject = browserCaptureStream;
             video.style.display = 'block';
             if (imgFeed) {
+                imgFeed.onerror = null;
                 imgFeed.src = '';
                 imgFeed.style.display = 'none';
             }
@@ -570,6 +581,7 @@
                     if (status.done || progress >= 100) {
                         clearInterval(browserCaptureInterval);
                         browserCaptureInterval = null;
+                        browserCaptureActive = false;
                         document.getElementById('pb-text').innerText = 'COMPLETE ✓';
                         statusMsg.innerText = 'Face captured successfully!';
                         setTimeout(() => {
@@ -597,6 +609,9 @@
             const statusMsg = document.getElementById('capture-status-msg');
 
             if (captureRuntimeConfig.camera_mode === 'browser') {
+                if (feed) {
+                    feed.onerror = null;
+                }
                 startBrowserCaptureFlow(sid, cid, eno);
                 return;
             }
@@ -631,7 +646,7 @@
         }
 
         function handleCameraError() {
-            if (captureRuntimeConfig.camera_mode === 'browser') {
+            if (captureRuntimeConfig.camera_mode === 'browser' || browserCaptureActive || browserCaptureStream) {
                 return;
             }
             document.getElementById('camera-error-ui').style.display = 'flex';
