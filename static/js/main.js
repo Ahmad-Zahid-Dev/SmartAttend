@@ -31,6 +31,55 @@ async function loadRuntimeConfig() {
     }
 }
 
+function getCameraErrorMessage(err) {
+    const name = err && err.name ? err.name : '';
+    const code = err && err.message ? err.message : '';
+
+    if (code === 'INSECURE_CONTEXT') {
+        return 'Camera needs HTTPS secure context. Open the Render URL directly in browser.';
+    }
+    if (code === 'NOT_SUPPORTED') {
+        return 'Browser camera API not supported on this device/browser.';
+    }
+    if (name === 'NotAllowedError' || name === 'SecurityError') {
+        return 'Camera blocked. Allow camera in browser site settings and reload once.';
+    }
+    if (name === 'NotReadableError' || name === 'TrackStartError') {
+        return 'Camera is busy in another app/tab. Close other camera apps and retry.';
+    }
+    if (name === 'OverconstrainedError' || name === 'ConstraintNotSatisfiedError') {
+        return 'Requested camera mode not available. Retrying with default camera may help.';
+    }
+    if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+        return 'No camera detected on this device.';
+    }
+    return 'Unable to start camera. Please retry or reopen the page.';
+}
+
+async function getUserCameraStream() {
+    if (!window.isSecureContext) {
+        throw new Error('INSECURE_CONTEXT');
+    }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('NOT_SUPPORTED');
+    }
+
+    const attempts = [
+        { video: { facingMode: { ideal: 'user' }, width: { ideal: 640 }, height: { ideal: 480 } }, audio: false },
+        { video: true, audio: false }
+    ];
+
+    let lastError = null;
+    for (const constraints of attempts) {
+        try {
+            return await navigator.mediaDevices.getUserMedia(constraints);
+        } catch (e) {
+            lastError = e;
+        }
+    }
+    throw lastError || new Error('CAMERA_INIT_FAILED');
+}
+
 // Initialize Dashboard
 document.addEventListener('DOMContentLoaded', async () => {
     await loadRuntimeConfig();
@@ -1340,18 +1389,20 @@ async function startBrowserRegistrationCapture(sid, cid) {
     const feed = document.getElementById('reg-camera-feed');
     const video = ensureBrowserRegistrationVideo();
 
-    if (!video || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        showToast('Browser camera not supported on this device.');
+    if (!video) {
+        showToast('Camera container not available. Reload and try again.');
         return;
     }
 
+    if (browserRegStream) {
+        browserRegStream.getTracks().forEach(track => track.stop());
+        browserRegStream = null;
+    }
+
     try {
-        browserRegStream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'user' },
-            audio: false
-        });
+        browserRegStream = await getUserCameraStream();
     } catch (e) {
-        showToast('Camera permission denied.');
+        showToast(getCameraErrorMessage(e));
         return;
     }
 
@@ -1492,18 +1543,20 @@ async function startBrowserCameraSession() {
     const stopBtn = document.getElementById('stop-btn');
     const videoEl = ensureBrowserVideoElement();
 
-    if(!videoEl || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        showToast('Browser camera not supported on this device');
+    if(!videoEl) {
+        showToast('Camera container not available. Reload and try again.');
         return;
     }
 
+    if (browserCameraStream) {
+        browserCameraStream.getTracks().forEach(track => track.stop());
+        browserCameraStream = null;
+    }
+
     try {
-        browserCameraStream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: 'user' },
-            audio: false
-        });
+        browserCameraStream = await getUserCameraStream();
     } catch(e) {
-        showToast('Camera permission denied or unavailable');
+        showToast(getCameraErrorMessage(e));
         return;
     }
 
