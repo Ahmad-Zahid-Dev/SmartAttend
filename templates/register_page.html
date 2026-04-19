@@ -338,7 +338,8 @@
                 }
             }
             if (errorUiEl && (captureRuntimeConfig.camera_mode === 'browser' || forceBrowserMode)) {
-                disableCameraErrorUiForBrowser();
+                // Hard-remove stale overlay so it can never cover browser camera feed.
+                errorUiEl.remove();
             }
 
             await loadMetadata();
@@ -682,7 +683,7 @@
 
         function handleCameraError() {
             const errorUiEl = document.getElementById('camera-error-ui');
-            if (errorUiEl && errorUiEl.getAttribute('data-disabled') === '1') {
+            if (!errorUiEl || (errorUiEl && errorUiEl.getAttribute('data-disabled') === '1')) {
                 return;
             }
             if (forceBrowserMode || captureRuntimeConfig.camera_mode === 'browser' || browserCaptureActive || browserCaptureStream) {
