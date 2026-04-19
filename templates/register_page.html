@@ -338,7 +338,7 @@
                 }
             }
             if (errorUiEl && (captureRuntimeConfig.camera_mode === 'browser' || forceBrowserMode)) {
-                errorUiEl.style.display = 'none';
+                disableCameraErrorUiForBrowser();
             }
 
             await loadMetadata();
@@ -508,6 +508,15 @@
             return browserCaptureVideo;
         }
 
+        function disableCameraErrorUiForBrowser() {
+            const errorUi = document.getElementById('camera-error-ui');
+            if (!errorUi) return;
+            errorUi.style.display = 'none';
+            errorUi.style.visibility = 'hidden';
+            errorUi.style.pointerEvents = 'none';
+            errorUi.setAttribute('data-disabled', '1');
+        }
+
         async function startBrowserCaptureFlow(sid, cid, eno) {
             const loading = document.getElementById('feed-loading');
             const statusMsg = document.getElementById('capture-status-msg');
@@ -637,6 +646,7 @@
                 if (feed) {
                     feed.onerror = null;
                 }
+                disableCameraErrorUiForBrowser();
                 startBrowserCaptureFlow(sid, cid, eno);
                 return;
             }
@@ -671,8 +681,11 @@
         }
 
         function handleCameraError() {
+            const errorUiEl = document.getElementById('camera-error-ui');
+            if (errorUiEl && errorUiEl.getAttribute('data-disabled') === '1') {
+                return;
+            }
             if (forceBrowserMode || captureRuntimeConfig.camera_mode === 'browser' || browserCaptureActive || browserCaptureStream) {
-                const errorUiEl = document.getElementById('camera-error-ui');
                 if (errorUiEl) {
                     errorUiEl.style.display = 'none';
                 }
