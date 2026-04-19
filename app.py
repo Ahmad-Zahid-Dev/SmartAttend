@@ -15,7 +15,15 @@ app.secret_key = 'smart_attend_secret_key'
 # Runtime camera strategy:
 # - server  => existing OpenCV webcam stream on server machine (default, current behavior)
 # - browser => client browser captures frames and posts them for recognition (cloud-friendly)
-CAMERA_MODE = os.getenv('CAMERA_MODE', 'server').strip().lower()
+_camera_mode_env = os.getenv('CAMERA_MODE', '').strip().lower()
+if _camera_mode_env in ('server', 'browser'):
+    CAMERA_MODE = _camera_mode_env
+else:
+    # Render free instances do not have physical webcams, so browser mode is the safe default there.
+    on_render = bool(os.getenv('RENDER')) or bool(os.getenv('RENDER_EXTERNAL_HOSTNAME'))
+    CAMERA_MODE = 'browser' if on_render else 'server'
+
+print(f"[CAMERA] Runtime mode: {CAMERA_MODE}")
 
 @app.route('/debug_routes')
 def debug_routes():
