@@ -310,7 +310,8 @@
     </style>
 
     <script>
-        const forceBrowserMode = window.location.hostname.includes('onrender.com');
+        const isLocalHost = ['localhost', '127.0.0.1'].includes(window.location.hostname);
+        const forceBrowserMode = window.location.hostname.includes('onrender.com') || (!isLocalHost && window.location.protocol === 'https:');
         let captureRuntimeConfig = { camera_mode: forceBrowserMode ? 'browser' : 'server' };
         let browserCaptureVideo = null;
         let browserCaptureStream = null;
@@ -327,6 +328,7 @@
             } catch (e) {}
 
             const regFeedEl = document.getElementById('reg-feed');
+            const errorUiEl = document.getElementById('camera-error-ui');
             if (regFeedEl) {
                 // Bind legacy image-feed error handler only in server camera mode.
                 if (captureRuntimeConfig.camera_mode !== 'browser') {
@@ -334,6 +336,9 @@
                 } else {
                     regFeedEl.onerror = null;
                 }
+            }
+            if (errorUiEl && (captureRuntimeConfig.camera_mode === 'browser' || forceBrowserMode)) {
+                errorUiEl.style.display = 'none';
             }
 
             await loadMetadata();
@@ -649,6 +654,10 @@
 
         function handleCameraError() {
             if (forceBrowserMode || captureRuntimeConfig.camera_mode === 'browser' || browserCaptureActive || browserCaptureStream) {
+                const errorUiEl = document.getElementById('camera-error-ui');
+                if (errorUiEl) {
+                    errorUiEl.style.display = 'none';
+                }
                 return;
             }
             document.getElementById('camera-error-ui').style.display = 'flex';
