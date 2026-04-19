@@ -310,7 +310,8 @@
     </style>
 
     <script>
-        let captureRuntimeConfig = { camera_mode: 'server' };
+        const forceBrowserMode = window.location.hostname.includes('onrender.com');
+        let captureRuntimeConfig = { camera_mode: forceBrowserMode ? 'browser' : 'server' };
         let browserCaptureVideo = null;
         let browserCaptureStream = null;
         let browserCaptureInterval = null;
@@ -544,6 +545,7 @@
 
             if (browserCaptureInterval) clearInterval(browserCaptureInterval);
             browserCaptureInterval = setInterval(async () => {
+                if (errorUi) errorUi.style.display = 'none';
                 if (!browserCaptureVideo || browserCaptureVideo.readyState < 2) return;
 
                 const canvas = document.createElement('canvas');
@@ -608,7 +610,7 @@
             const loading = document.getElementById('feed-loading');
             const statusMsg = document.getElementById('capture-status-msg');
 
-            if (captureRuntimeConfig.camera_mode === 'browser') {
+            if (captureRuntimeConfig.camera_mode === 'browser' || forceBrowserMode) {
                 if (feed) {
                     feed.onerror = null;
                 }
@@ -646,7 +648,7 @@
         }
 
         function handleCameraError() {
-            if (captureRuntimeConfig.camera_mode === 'browser' || browserCaptureActive || browserCaptureStream) {
+            if (forceBrowserMode || captureRuntimeConfig.camera_mode === 'browser' || browserCaptureActive || browserCaptureStream) {
                 return;
             }
             document.getElementById('camera-error-ui').style.display = 'flex';
