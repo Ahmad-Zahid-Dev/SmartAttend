@@ -1433,9 +1433,26 @@ async function startBrowserRegistrationCapture(sid, cid) {
                     class_id: cid
                 })
             });
-            if (!res.ok) return;
             const status = await res.json();
-            if (!status.success) return;
+            if (!res.ok || !status.success) {
+                if (status && status.duplicate) {
+                    if (browserRegInterval) {
+                        clearInterval(browserRegInterval);
+                        browserRegInterval = null;
+                    }
+                    if (browserRegStream) {
+                        browserRegStream.getTracks().forEach(track => track.stop());
+                        browserRegStream = null;
+                    }
+                    if (browserRegVideo) {
+                        browserRegVideo.srcObject = null;
+                        browserRegVideo.style.display = 'none';
+                    }
+                    text.innerText = 'student already exist';
+                    showToast('student already exist');
+                }
+                return;
+            }
 
             fill.style.width = status.progress + '%';
             text.innerText = `Scanning: ${status.count} / 100 samples`;

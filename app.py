@@ -126,6 +126,7 @@ class CameraManager:
 app_state = AppState()
 camera = CameraManager()
 _browser_training_locks = set()
+_browser_duplicate_hits = {}
 
 
 def _norm_token(v):
@@ -290,8 +291,10 @@ def api_capture_frame():
     existing = [f for f in os.listdir(target_dir) if f.lower().endswith('.jpg')]
     count = len(existing)
     max_capture = 100
+    dup_key = f"{class_id}:{student_id}"
 
     if count >= max_capture:
+        _browser_duplicate_hits.pop(dup_key, None)
         lock_key = f"{class_id}:{student_id}"
         if lock_key not in _browser_training_locks:
             _browser_training_locks.add(lock_key)
@@ -320,12 +323,37 @@ def api_capture_frame():
         progress = int((count / max_capture) * 100)
         return jsonify({'success': True, 'count': count, 'progress': progress, 'done': False})
 
+    # Strict duplicate guard for browser registration mode.
+    # LBPH always predicts nearest label, so we use a very strict threshold
+    # and require repeated confirmations before blocking enrollment.
+    if engine.model_loaded:
+        is_dup, matched_id, conf = engine.check_duplicate(face_roi, threshold=38)
+        if is_dup and str(matched_id) != str(student_id):
+            hits = _browser_duplicate_hits.get(dup_key, 0) + 1
+            _browser_duplicate_hits[dup_key] = hits
+            if hits >= 4:
+                matched_student = db.get_student_by_id(str(matched_id)) or {}
+                return jsonify({
+                    'success': False,
+                    'duplicate': True,
+                    'message': 'student already exist',
+                    'matched_student': {
+                        'id': str(matched_student.get('id', matched_id)),
+                        'name': matched_student.get('FullName', 'Unknown'),
+                        'enrollment_no': matched_student.get('EnrollmentNo', 'N/A')
+                    },
+                    'confidence': float(conf)
+                }), 409
+        else:
+            _browser_duplicate_hits[dup_key] = 0
+
     next_count = count + 1
     save_path = os.path.join(target_dir, f"{next_count}.jpg")
     cv2.imwrite(save_path, cv2.resize(face_roi, (200, 200)))
     progress = int((next_count / max_capture) * 100)
 
     if next_count >= max_capture:
+        _browser_duplicate_hits.pop(dup_key, None)
         lock_key = f"{class_id}:{student_id}"
         if lock_key not in _browser_training_locks:
             _browser_training_locks.add(lock_key)

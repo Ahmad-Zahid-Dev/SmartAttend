@@ -571,7 +571,25 @@
                         })
                     });
                     const status = await res.json();
-                    if (!res.ok || !status.success) return;
+                    if (!res.ok || !status.success) {
+                        if (status && status.duplicate) {
+                            clearInterval(browserCaptureInterval);
+                            browserCaptureInterval = null;
+                            browserCaptureActive = false;
+                            if (browserCaptureStream) {
+                                browserCaptureStream.getTracks().forEach(track => track.stop());
+                                browserCaptureStream = null;
+                            }
+                            if (browserCaptureVideo) {
+                                browserCaptureVideo.srcObject = null;
+                                browserCaptureVideo.style.display = 'none';
+                            }
+                            document.getElementById('pb-text').innerText = 'BLOCKED';
+                            if (statusMsg) statusMsg.innerText = 'student already exist';
+                            showToast('student already exist');
+                        }
+                        return;
+                    }
 
                     const total = 100;
                     const count = status.count || 0;
