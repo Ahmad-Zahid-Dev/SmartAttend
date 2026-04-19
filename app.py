@@ -127,6 +127,12 @@ app_state = AppState()
 camera = CameraManager()
 _browser_training_locks = set()
 _browser_duplicate_hits = {}
+_dup_model_cache = {
+    'recognizer': None,
+    'label_map': {},
+    'file_count': -1,
+    'built_at': 0.0
+}
 
 
 def _norm_token(v):
@@ -180,6 +186,80 @@ def _decode_data_url_to_frame(data_url):
         return frame
     except Exception:
         return None
+
+
+def _preprocess_face_gray(face_gray):
+    face_resized = cv2.resize(face_gray, (200, 200))
+    face_equalized = cv2.equalizeHist(face_resized)
+    kernel = np.array([[-1, -1, -1], [-1, 9, -1], [-1, -1, -1]])
+    return cv2.filter2D(face_equalized, -1, kernel)
+
+
+def _count_dataset_images(dataset_root='dataset'):
+    total = 0
+    if not os.path.isdir(dataset_root):
+        return 0
+    for root, _, files in os.walk(dataset_root):
+        total += sum(1 for f in files if f.lower().endswith('.jpg'))
+    return total
+
+
+def _get_duplicate_guard_model():
+    dataset_root = 'dataset'
+    if not os.path.isdir(dataset_root):
+        return None, {}
+
+    file_count = _count_dataset_images(dataset_root)
+    now = time.time()
+    if (
+        _dup_model_cache['recognizer'] is not None and
+        _dup_model_cache['file_count'] == file_count and
+        (now - _dup_model_cache['built_at']) < 30
+    ):
+        return _dup_model_cache['recognizer'], _dup_model_cache['label_map']
+
+    faces = []
+    labels = []
+    label_map = {}
+    label_idx = 1
+
+    for class_dir in os.listdir(dataset_root):
+        class_path = os.path.join(dataset_root, class_dir)
+        if not os.path.isdir(class_path):
+            continue
+        for student_token in os.listdir(class_path):
+            student_path = os.path.join(class_path, student_token)
+            if not os.path.isdir(student_path):
+                continue
+
+            current_label = label_idx
+            label_map[current_label] = str(student_token)
+            label_idx += 1
+
+            for fname in os.listdir(student_path):
+                if not fname.lower().endswith('.jpg'):
+                    continue
+                img = cv2.imread(os.path.join(student_path, fname), cv2.IMREAD_GRAYSCALE)
+                if img is None:
+                    continue
+                faces.append(_preprocess_face_gray(img))
+                labels.append(current_label)
+
+    if len(faces) < 10:
+        _dup_model_cache['recognizer'] = None
+        _dup_model_cache['label_map'] = {}
+        _dup_model_cache['file_count'] = file_count
+        _dup_model_cache['built_at'] = now
+        return None, {}
+
+    recog = cv2.face.LBPHFaceRecognizer_create(radius=1, neighbors=8, grid_x=10, grid_y=10, threshold=120.0)
+    recog.train(faces, np.array(labels))
+
+    _dup_model_cache['recognizer'] = recog
+    _dup_model_cache['label_map'] = label_map
+    _dup_model_cache['file_count'] = file_count
+    _dup_model_cache['built_at'] = now
+    return recog, label_map
 
 
 @app.route('/api/runtime_config')
@@ -323,29 +403,48 @@ def api_capture_frame():
         progress = int((count / max_capture) * 100)
         return jsonify({'success': True, 'count': count, 'progress': progress, 'done': False})
 
-    # Strict duplicate guard for browser registration mode.
-    # LBPH always predicts nearest label, so we use a very strict threshold
-    # and require repeated confirmations before blocking enrollment.
-    if engine.model_loaded:
-        is_dup, matched_id, conf = engine.check_duplicate(face_roi, threshold=38)
+    # Strong duplicate guard backed by current dataset so stale model state cannot bypass checks.
+    face_proc = _preprocess_face_gray(face_roi)
+    dup_recog, label_map = _get_duplicate_guard_model()
+    duplicate_sid = None
+    duplicate_conf = 999.0
+
+    if dup_recog is not None:
+        try:
+            pred_label, pred_conf = dup_recog.predict(face_proc)
+            candidate_sid = str(label_map.get(pred_label, ''))
+            # Lower confidence is better in LBPH; 58 is strict enough for same-person blocking.
+            if candidate_sid and candidate_sid != str(student_id) and pred_conf < 58:
+                duplicate_sid = candidate_sid
+                duplicate_conf = float(pred_conf)
+        except Exception:
+            pass
+
+    # Fallback to engine model if dataset-guard could not decide.
+    if duplicate_sid is None and engine.model_loaded:
+        is_dup, matched_id, conf = engine.check_duplicate(face_roi, threshold=42)
         if is_dup and str(matched_id) != str(student_id):
-            hits = _browser_duplicate_hits.get(dup_key, 0) + 1
-            _browser_duplicate_hits[dup_key] = hits
-            if hits >= 4:
-                matched_student = db.get_student_by_id(str(matched_id)) or {}
-                return jsonify({
-                    'success': False,
-                    'duplicate': True,
-                    'message': 'student already exist',
-                    'matched_student': {
-                        'id': str(matched_student.get('id', matched_id)),
-                        'name': matched_student.get('FullName', 'Unknown'),
-                        'enrollment_no': matched_student.get('EnrollmentNo', 'N/A')
-                    },
-                    'confidence': float(conf)
-                }), 409
-        else:
-            _browser_duplicate_hits[dup_key] = 0
+            duplicate_sid = str(matched_id)
+            duplicate_conf = float(conf)
+
+    if duplicate_sid is not None:
+        hits = _browser_duplicate_hits.get(dup_key, 0) + 1
+        _browser_duplicate_hits[dup_key] = hits
+        if hits >= 2:
+            matched_student = db.get_student_by_id(str(duplicate_sid)) or {}
+            return jsonify({
+                'success': False,
+                'duplicate': True,
+                'message': 'student already exist',
+                'matched_student': {
+                    'id': str(matched_student.get('id', duplicate_sid)),
+                    'name': matched_student.get('FullName', 'Unknown'),
+                    'enrollment_no': matched_student.get('EnrollmentNo', 'N/A')
+                },
+                'confidence': duplicate_conf
+            }), 409
+    else:
+        _browser_duplicate_hits[dup_key] = 0
 
     next_count = count + 1
     save_path = os.path.join(target_dir, f"{next_count}.jpg")
