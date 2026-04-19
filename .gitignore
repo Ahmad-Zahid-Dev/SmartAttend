@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.venv/
+venv/
+
+# Local runtime state
+flask_session/
+*.log
+
+# Secrets and local credentials
+serviceAccountKey.json
+.env
+
+# Artifacts
+exports/
+*.sqlite3
+dataset/
+data/training_images/
+test_camera.jpg
+test_camera_0.jpg
+ngrok.exe
+model.yml
+model/trained_model.yml
+
+# OS/editor
+.vscode/*.code-workspace
+.DS_Store
+Thumbs.db

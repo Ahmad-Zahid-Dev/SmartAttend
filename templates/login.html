@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartAttend | Login</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="login-page">
+    <div class="login-wrapper">
+        <div class="login-card">
+            <!-- Viewfinder Corners -->
+            <div class="corner tl"></div>
+            <div class="corner tr"></div>
+            <div class="corner bl"></div>
+            <div class="corner br"></div>
+
+            <div class="header-section compact-header">
+                <div class="face-scan-icon">
+                    <i class="fas fa-user-check"></i>
+                    <div class="scan-overlay"></div>
+                </div>
+                <div class="brand-text">
+                    <h2 class="brand-title">SmartAttend</h2>
+                    <p class="subtitle">Secure Authentication</p>
+                </div>
+            </div>
+            
+            <form id="loginForm">
+                <div class="role-selector">
+                    <button type="button" class="role-btn active" id="btn-admin" onclick="setRole('admin', this)">
+                        <i class="fas fa-user-shield"></i> Admin
+                    </button>
+                    <button type="button" class="role-btn" id="btn-faculty" onclick="setRole('faculty', this)">
+                        <i class="fas fa-chalkboard-teacher"></i> Faculty
+                    </button>
+                    <button type="button" class="role-btn" id="btn-student" onclick="setRole('student', this)">
+                        <i class="fas fa-user-graduate"></i> Student
+                    </button>
+                    <input type="hidden" id="role" value="admin">
+                </div>
+
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-id-badge input-icon"></i>
+                        <input type="text" id="username" placeholder="Enter Username" required>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <div class="input-wrapper">
+                        <i class="fas fa-lock input-icon"></i>
+                        <input type="password" id="password" placeholder="Enter Password" required>
+                        <i class="fas fa-eye-slash toggle-password" id="togglePassword"></i>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary btn-login">
+                    <span>Login</span>
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+                
+                <div id="login-error" class="error-message">
+                    <i class="fas fa-exclamation-circle"></i> 
+                    <span id="error-text">Identity verification failed</span>
+                </div>
+            </form>
+            
+            <div class="login-footer">
+                <p><i class="fas fa-shield-alt"></i> Biometric Data Encrypted</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast"></div>
+
+    <script>
+        // Password Visibility Toggle
+        const togglePassword = document.querySelector('#togglePassword');
+        const password = document.querySelector('#password');
+
+        togglePassword.addEventListener('click', function (e) {
+            // toggle the type attribute
+            const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+            password.setAttribute('type', type);
+            // toggle the eye slash icon
+            this.classList.toggle('fa-eye');
+            this.classList.toggle('fa-eye-slash');
+        });
+
+        function setRole(role, btn) {
+            document.getElementById('role').value = role;
+            document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const u = document.getElementById('username').value.trim();
+            const p = document.getElementById('password').value.trim();
+            const r = document.getElementById('role').value;
+            
+            if(!u || !p) {
+                const err = document.getElementById('login-error');
+                err.style.display = 'flex';
+                document.getElementById('error-text').innerText = "Fields cannot be empty";
+                return;
+            }
+
+            const btn = e.target.querySelector('.btn-login');
+            btn.innerHTML = '<span>Verifying...</span> <i class="fas fa-spinner fa-spin"></i>';
+            btn.disabled = true;
+
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({username: u, password: p, role: r})
+                });
+                const data = await res.json();
+                if(res.ok) {
+                    localStorage.setItem('currentUser', JSON.stringify(data.user));
+                    window.location.href = data.redirect;
+                } else {
+                    const err = document.getElementById('login-error');
+                    err.style.display = 'flex';
+                    document.getElementById('error-text').innerText = data.message;
+                    btn.innerHTML = '<span>Login</span> <i class="fas fa-arrow-right"></i>';
+                    btn.disabled = false;
+                }
+            } catch(e) {
+                console.error(e);
+                btn.disabled = false;
+                btn.innerHTML = '<span>Login</span> <i class="fas fa-arrow-right"></i>';
+            }
+        });
+    </script>
+</body>
+</html>

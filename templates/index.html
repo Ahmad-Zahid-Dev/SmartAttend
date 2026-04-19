@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartAttend | Advanced Intelligence System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+
+<body class="portal-theme {{ 'admin-mode' if user.role == 'admin' else 'faculty-mode' }}">
+    <div class="portal-blob blob-1"></div>
+    <div class="portal-blob blob-2"></div>
+    <div class="portal-blob blob-3"></div>
+    
+    <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleSidebar()"></div>
+    <div id="main-container" class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar glass-sidebar">
+            <div class="sidebar-header">
+                <div class="brand-container">
+                    <i class="fas fa-atom brand-icon"></i>
+                    <span>SmartAttend</span>
+                </div>
+                <a href="/logout" onclick="localStorage.clear()" class="btn btn-logout-cyber" style="width: 100%; justify-content: center; font-size: 0.75rem; padding: 0.6rem;">
+                    <i class="fas fa-sign-out-alt"></i> Exit System
+                </a>
+            </div>
+
+            <nav class="sidebar-nav scrollbar-hidden">
+                <div class="not-student-only">
+                    <div class="nav-section-label">General</div>
+                    <a href="#" class="nav-item active" onclick="showView('dashboard')">
+                        <i class="fas fa-th-large"></i> <span>Dashboard</span>
+                    </a>
+                </div>
+                
+                <div class="faculty-only">
+                    <a href="#" class="nav-item" onclick="showView('class-selection')">
+                        <i class="fas fa-chalkboard-teacher"></i> <span>Attendance Panel</span>
+                    </a>
+                </div>
+                
+                    <div class="nav-section-label admin-only">Management</div>
+                    <!-- Departments Dropdown -->
+                    <div class="nav-item-dropdown admin-only">
+                        <a href="#" class="nav-item nav-dropdown-trigger" onclick="toggleDeptDropdown(event)">
+                            <i class="fas fa-building-columns"></i>
+                            <span>Departments</span>
+                            <i class="fas fa-chevron-down dept-arrow" id="dept-arrow" style="margin-left: auto; font-size: 0.7rem; transition: transform 0.3s;"></i>
+                        </a>
+                        <div class="dept-submenu" id="dept-submenu">
+                            <div style="padding: 1rem; text-align: center; font-size: 0.75rem; color: var(--text-dim);">
+                                <i class="fas fa-spinner fa-spin"></i> Loading...
+                            </div>
+                        </div>
+                    </div>
+                    <a href="#" class="nav-item admin-only" onclick="showView('faculty-registration')">
+                        <i class="fas fa-user-plus"></i> <span>Faculty Registration</span>
+                    </a>
+                    <a href="#" class="nav-item admin-only" onclick="showView('manage-teachers')">
+                        <i class="fas fa-id-badge"></i> <span>Faculty DB</span>
+                    </a>
+                    <a href="#" class="nav-item admin-only" onclick="showView('manage-subjects')">
+                        <i class="fas fa-book"></i> <span>Subjects</span>
+                    </a>
+                    <a href="{{ url_for('view_register') }}" class="nav-item admin-only">
+                        <i class="fas fa-user-plus"></i> <span>Student Registration</span>
+                    </a>
+
+                <div class="faculty-only">
+                    <a href="#" class="nav-item" onclick="showView('manage-students')">
+                        <i class="fas fa-users-cog"></i> <span>Student DB</span>
+                    </a>
+                </div>
+
+                <div class="student-only" style="display: none; flex-direction: column; width: 100%;">
+                    <div class="nav-section-label">Functions</div>
+                    <a href="#" class="nav-item student-only" onclick="showView('student-dashboard')">
+                        <i class="fas fa-user-check"></i> <span>My Attendance</span>
+                    </a>
+                    <a href="#" class="nav-item student-only" onclick="showView('date-wise-attendance')">
+                        <i class="fas fa-calendar-day"></i> <span>Date wise Attendance</span>
+                    </a>
+                    <a href="#" class="nav-item student-only" onclick="showView('day-wise-attendance')">
+                        <i class="fas fa-calendar-week"></i> <span>Day wise Attendance</span>
+                    </a>
+                    <a href="#" class="nav-item student-only" onclick="showView('student-profile')">
+                        <i class="fas fa-id-card"></i> <span>Student Details</span>
+                    </a>
+                </div>
+
+
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-profile">
+                    <div class="user-avatar" id="user-initials">AD</div>
+                    <div class="user-info">
+                        <span class="name" id="display-username">Admin</span>
+                        <span class="role" id="display-role-badge">ADMIN ACCESS</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="content portal-content scrollbar-hidden">
+            <header class="top-bar top-bar-glass">
+                <div class="view-title">
+                    <button id="back-view-btn" class="btn-icon" onclick="goBackView()" title="Go back" style="margin-right: 8px;">
+                        <i class="fas fa-arrow-left"></i>
+                    </button>
+                    <button id="sidebar-toggle" class="mobile-only btn-icon" onclick="toggleSidebar()">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <h2 id="current-view-title">Dashboard</h2>
+                </div>
+                <div class="top-bar-actions">
+                    <div id="status-badge" class="btn btn-outline" style="border-radius: 50px; padding: 4px 16px; font-size: 0.7rem; border-color: rgba(16, 185, 129, 0.4); color: #059669; background: rgba(16, 185, 129, 0.05);">SYSTEM READY</div>
+                    <div style="display: flex; gap: 8px; align-items: center; background: rgba(255, 255, 255, 0.6); padding: 5px 15px; border-radius: 50px; border: 1px solid rgba(37, 99, 235, 0.1);">
+                        <span id="camera-status-dot" style="width: 8px; height: 8px; background: #ef4444; border-radius: 50%; box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);"></span>
+                        <span style="font-size: 0.7rem; font-weight: 800; color: #64748b; letter-spacing: 0.5px;">SENSORS</span>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Faculty Registration View -->
+            <div id="faculty-registration-view" class="view" style="display: none;">
+                <!-- Faculty Registration Section -->
+                <div class="card glass-card">
+                    <div class="card-corners">
+                        <div class="corner tl"></div><div class="corner tr"></div>
+                        <div class="corner bl"></div><div class="corner br"></div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 2rem; border-bottom: 2px solid var(--primary); padding-bottom: 1rem;">
+                        <div style="background: var(--primary); color: #fff; width: 50px; height: 50px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; box-shadow: 0 4px 15px var(--primary-shadow);">
+                            <i class="fas fa-user-plus"></i>
+                        </div>
+                        <div>
+                            <h3 style="margin: 0; font-size: 1.5rem; color: #1e293b; font-weight: 800;">Faculty Registration Form</h3>
+                            <p style="margin: 0; font-size: 0.85rem; color: #64748b; font-weight: 600;">Complete the fields below to register and authorize new faculty.</p>
+                        </div>
+                    </div>
+
+                    <form onsubmit="addTeacher(event)" id="faculty-reg-form" style="display: block !important; visibility: visible !important;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 2rem;">
+                            <div class="form-column">
+                                <div class="input-group">
+                                    <label style="color: #1e293b; font-weight: 700;">Faculty ID (System Generated)</label>
+                                    <input type="text" id="tch-id" readonly style="background: #f1f5f9; border: 1px solid #cbd5e1; color: var(--primary); font-weight: 800; font-family: monospace;">
+                                </div>
+                                 <div class="input-group">
+                                    <label style="color: #1e293b; font-weight: 700;">Faculty Name</label>
+                                    <input type="text" id="tch-name" required placeholder="Ex: Dr. Robert Downey" style="border: 1px solid #cbd5e1; background: #fff;">
+                                 </div>
+                                 <div class="input-group">
+                                    <label style="color: #1e293b; font-weight: 700;">Department / Courses</label>
+                                    <div style="display: flex; flex-wrap: wrap; gap: 15px; background: #fff; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; margin-top: 5px;">
+                                        <label style="display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.85rem; color: #334155; cursor: pointer;"><input type="checkbox" name="tch-dept-check" value="BCA" onchange="loadSubjectsForFacultyReg()"> BCA</label>
+                                        <label style="display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.85rem; color: #334155; cursor: pointer;"><input type="checkbox" name="tch-dept-check" value="MCA" onchange="loadSubjectsForFacultyReg()"> MCA</label>
+                                        <label style="display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.85rem; color: #334155; cursor: pointer;"><input type="checkbox" name="tch-dept-check" value="BTech" onchange="loadSubjectsForFacultyReg()"> BTech</label>
+                                        <label style="display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 0.85rem; color: #334155; cursor: pointer;"><input type="checkbox" name="tch-dept-check" value="MTech" onchange="loadSubjectsForFacultyReg()"> MTech</label>
+                                    </div>
+                                    <input type="hidden" id="tch-dept" value="">
+                                 </div>
+                                <div class="input-group">
+                                    <label style="color: #1e293b; font-weight: 700;">Portal Username</label>
+                                    <input type="text" id="tch-user" required placeholder="User signature" style="border: 1px solid #cbd5e1; background: #fff;">
+                                </div>
+                            </div>
+                            
+                            <div class="form-column">
+                                <div class="input-group">
+                                    <label style="color: #1e293b; font-weight: 700;">Official Communication Email</label>
+                                                <input type="email" id="tch-email" required placeholder="name@gmail.com" pattern="^[A-Za-z0-9._%+-]+@gmail\.com$" title="Use a valid gmail address (example@gmail.com)" style="border: 1px solid #cbd5e1; background: #fff;">
+                                </div>
+                                 <div class="input-group">
+                                    <label style="color: #1e293b; font-weight: 700;">Contact No.</label>
+                                                <input type="text" id="tch-phone" required placeholder="+91XXXXXXXXXX" pattern="^\+91\d{10}$" title="Use Indian format: +91 followed by 10 digits" style="border: 1px solid #cbd5e1; background: #fff;">
+                                 </div>
+                                <div class="input-group">
+                                    <label style="color: #1e293b; font-weight: 700;">Designation</label>
+                                    <input type="text" id="tch-spec" required placeholder="Ex: Assistant Professor" style="border: 1px solid #cbd5e1; background: #fff;">
+                                </div>
+                                 <div class="input-group">
+                                    <label style="color: #1e293b; font-weight: 700;">Faculty Password</label>
+                                    <div style="position: relative;">
+                                        <input type="password" id="tch-pass" required placeholder="••••••••" style="border: 1px solid #cbd5e1; background: #fff; width: 100%;">
+                                        <button type="button" onclick="toggleTchPass()" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #64748b; padding: 5px;">
+                                            <i class="fas fa-eye" id="tch-pass-icon"></i>
+                                        </button>
+                                    </div>
+                                 </div>
+                            </div>
+                        </div>
+
+
+                        <div class="input-group" style="margin-top: 1rem;">
+                            <label style="color: #1e293b; font-weight: 700;">Multi-Subject Allocation</label>
+                            <div class="multi-select-container scrollbar-hidden" id="subjects-checkbox-list" style="margin-top: 0.5rem; max-height: 180px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; background: #f8fafc; padding: 1rem; border-radius: 8px; border: 1px solid #cbd5e1;">
+                                <div style="padding: 1rem; text-align: center; color: #64748b; font-size: 0.8rem;">
+                                    <i class="fas fa-satellite-dish fa-spin"></i> Initializing subject list...
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; justify-content: flex-end; margin-top: 2rem; gap: 12px;">
+                            <button type="reset" class="btn btn-outline" style="padding: 10px 24px; color: #64748b; border-color: #cbd5e1;">Clear Form</button>
+                            <button type="submit" class="btn btn-primary" style="padding: 12px 32px; font-weight: 700;">
+                                <i class="fas fa-check-circle"></i> Confirm Faculty Registration
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Dashboard View -->
+            <div id="dashboard-view" class="view" style="display: none;">
+                <div class="stats-grid admin-only">
+                    <div class="card glass-card stat-card">
+                        <div class="card-corners">
+                            <div class="corner tl"></div>
+                            <div class="corner tr"></div>
+                            <div class="corner bl"></div>
+                            <div class="corner br"></div>
+                        </div>
+                        <div class="stat-icon"><i class="fas fa-users"></i></div>
+                        <div class="stat-info">
+                            <h4>Total Students</h4>
+                            <div class="stat-value" id="stat-total">0</div>
+                        </div>
+                    </div>
+                    <div class="card glass-card stat-card">
+                        <div class="card-corners">
+                            <div class="corner tl"></div>
+                            <div class="corner tr"></div>
+                            <div class="corner bl"></div>
+                            <div class="corner br"></div>
+                        </div>
+                        <div class="stat-icon" style="color: var(--success); background: #f0fdf4;"><i class="fas fa-check-double"></i></div>
+                        <div class="stat-info">
+                            <h4>Present Today</h4>
+                            <div class="stat-value" id="stat-today">0</div>
+                        </div>
+                    </div>
+                    <div class="card glass-card stat-card" onclick="showView('faculty-registration')" style="cursor: pointer; border-left: 4px solid var(--primary); transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);">
+                        <div class="card-corners">
+                            <div class="corner tl"></div>
+                            <div class="corner tr"></div>
+                            <div class="corner bl"></div>
+                            <div class="corner br"></div>
+                        </div>
+                        <div class="stat-icon" style="color: var(--primary); background: rgba(37,99,235,0.1);"><i class="fas fa-user-plus"></i></div>
+                        <div class="stat-info">
+                            <h4>Staff Control</h4>
+                            <div class="stat-value" style="font-size: 1rem; font-weight: 800;">Onboard Faculty</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Course-wise Student Explorer (Admin Only) -->
+                <div class="admin-only" id="dept-overview-card" style="margin-bottom: 2rem;">
+                    <div class="card glass-card" style="padding: 1.75rem 2rem; border-left: 4px solid var(--primary);">
+                        <div class="card-corners">
+                            <div class="corner tl"></div><div class="corner tr"></div>
+                            <div class="corner bl"></div><div class="corner br"></div>
+                        </div>
+                        <div class="explorer-header" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.5rem; flex-wrap: wrap; gap: 1rem;">
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <div style="background: var(--primary); color: #000; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 0.9rem;">
+                                    <i class="fas fa-users-viewfinder"></i>
+                                </div>
+                                <h3 style="margin:0; font-size:1rem; font-weight: 800; letter-spacing: -0.5px; color: #1e293b;">
+                                    Student Directory Explorer
+                                </h3>
+                            </div>
+                            
+                            <div class="filter-controls" style="display: flex; gap: 10px; align-items: center;">
+                                <label style="font-size: 0.7rem; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 1px;">Filter by Course:</label>
+                                <select id="dash-course-select" onchange="loadStudentsForExplorer(this.value)" style="background: rgba(255,255,255,0.7); border: 1px solid rgba(37,99,235,0.1); border-radius: 8px; padding: 6px 16px; font-size: 0.8rem; font-weight: 700; color: var(--text-dark); cursor: pointer; min-width: 180px; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
+                                    <option value="">Scanning all courses...</option>
+                                </select>
+                            </div>
+
+                            <div id="dept-total-badge" style="background:rgba(37,99,235,0.1); color:var(--primary); border:1px solid rgba(37,99,235,0.2); padding:6px 14px; border-radius:50px; font-size:0.75rem; font-weight:800; letter-spacing:0.5px;">SYNCING RECORDS...</div>
+                        </div>
+
+                        <div id="explorer-student-list" class="scrollbar-hidden" style="max-height: 400px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; padding: 2px;">
+                            <!-- Injected by JS -->
+                            <div style="grid-column: 1/-1; text-align:center; padding:3rem; color:#94a3b8; font-size:0.85rem;">
+                                <i class="fas fa-circle-notch fa-spin" style="font-size:1.5rem; margin-bottom:1rem; display:block; color: var(--primary);"></i>
+                                Initializing Directory Sync...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dashboard-main-grid">
+                    <div class="card glass-card">
+                        <div class="card-corners">
+                            <div class="corner tl"></div>
+                            <div class="corner tr"></div>
+                            <div class="corner bl"></div>
+                            <div class="corner br"></div>
+                        </div>
+                        <h3><i class="fas fa-video" style="color: var(--primary);"></i> Intelligence Feed</h3>
+                        <div class="scanner-container">
+                            <div id="placeholder" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #64748b; background: rgba(255, 255, 255, 0.3); border: 2px dashed rgba(37, 99, 235, 0.15); border-radius: 12px;">
+                                <i class="fas fa-microchip" style="font-size: 3.5rem; margin-bottom: 1.5rem; opacity: 0.2; color: var(--primary);"></i>
+                                <p style="font-weight: 800; letter-spacing: 2px; color: #475569;">OFFLINE</p>
+                            </div>
+                            <img id="camera-feed" src="" class="no-crop" style="display:none; width:100%; height:100%;">
+                            <div id="scan-line" class="scanning-line" style="display: none;"></div>
+                        </div>
+                        <div id="active-session-label" style="margin-top: 1rem; font-size: 0.8rem; color: var(--primary); font-weight: 600;"></div>
+                        <div style="margin-top: 1.5rem; display: flex; gap: 1rem;">
+                            <button id="stop-btn" class="btn btn-danger" style="display: none;" onclick="stopCamera()">
+                                <i class="fas fa-stop"></i> End Session
+                            </button>
+                            <button class="btn btn-outline" onclick="rebootCamera()">
+                                <i class="fas fa-sync"></i> Reset Sensors
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="card glass-card" style="display: flex; flex-direction: column;">
+                        <div class="card-corners">
+                            <div class="corner tl"></div>
+                            <div class="corner tr"></div>
+                            <div class="corner bl"></div>
+                            <div class="corner br"></div>
+                        </div>
+                        <h3><i class="fas fa-fingerprint" style="color: var(--primary);"></i> Detected Presence</h3>
+                        
+                        <div class="presence-grid">
+                            <div style="background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 12px; display: flex; flex-direction: column;">
+                                <div style="padding: 0.75rem; border-bottom: 1px solid rgba(16, 185, 129, 0.2); display: flex; justify-content: space-between;">
+                                    <span style="font-size: 0.7rem; font-weight: 800; color: #10b981; letter-spacing: 0.5px;">SCANNED STUDENTS</span>
+                                    <span id="present-count" style="background: #10b981; color: #fff; padding: 2px 10px; border-radius: 10px; font-size: 0.7rem; font-weight: 700;">0</span>
+                                </div>
+                                <div id="attendance-list" class="scrollbar-hidden" style="overflow-y: auto; padding: 0.5rem; height: 260px;">
+                                    <div style="text-align: center; padding: 3rem 1rem; color: #64748b; font-size: 0.85rem;">
+                                        <i class="fas fa-satellite-dish" style="font-size: 2rem; margin-bottom: 1rem; opacity: 0.2;"></i>
+                                        <p>Initialize scan sequence...</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 12px; display: flex; flex-direction: column;">
+                                <div style="padding: 0.75rem; border-bottom: 1px solid rgba(239, 68, 68, 0.2); display: flex; justify-content: space-between;">
+                                    <span style="font-size: 0.7rem; font-weight: 800; color: #ef4444; letter-spacing: 0.5px;">EXPECTED STUDENTS</span>
+                                    <span id="absent-count" style="background: #ef4444; color: #fff; padding: 2px 10px; border-radius: 10px; font-size: 0.7rem; font-weight: 700;">0</span>
+                                </div>
+                                <div id="absent-list" class="scrollbar-hidden" style="overflow-y: auto; padding: 0.5rem; height: 260px;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="class-selection-view" class="view" style="display: none;">
+                <div class="card glass-card" style="max-width: 600px; margin: 2rem auto;">
+                    <div class="card-corners">
+                        <div class="corner tl"></div>
+                        <div class="corner tr"></div>
+                        <div class="corner bl"></div>
+                        <div class="corner br"></div>
+                    </div>
+                    <div style="text-align: center; margin-bottom: 2rem;">
+                        <div style="width: 80px; height: 80px; background: rgba(37, 99, 235, 0.1); border: 2px solid rgba(37, 99, 235, 0.3); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; color: #60a5fa; box-shadow: 0 0 20px rgba(37, 99, 235, 0.2);">
+                            <i class="fas fa-sliders-h" style="font-size: 2rem;"></i>
+                        </div>
+                        <h3>Mark Attendance</h3>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label>Select Course</label>
+                        <select id="faculty-class-select" onchange="loadSessionPrerequisites()">
+                            <option value="">Choose Your Assigned Course</option>
+                        </select>
+                    </div>
+                    
+                    <div class="input-group">
+                        <label>Subject</label>
+                        <select id="faculty-subject-select" onchange="loadRosterList()">
+                            <option value="">Select Subject</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Attendance Date</label>
+                        <input type="date" id="faculty-date-select">
+                    </div>
+                    <!-- Hidden Section Select for JS Compatibility -->
+                    <select id="faculty-section-select" style="display: none;" onchange="loadRosterList()">
+                        <option value="">All Sections</option>
+                    </select>
+
+                    <button onclick="startFacultyAttendance()" class="btn btn-primary" style="width: 100%; justify-content: center; padding: 1rem; margin-top: 1rem;">
+                        <i class="fas fa-camera"></i> Student Face Recognition
+                    </button>
+
+                    <!-- User Request: Live Student Roster for Faculty -->
+                    <div id="roster-list-container" style="display: none; margin-top: 2rem; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 1.5rem;">
+                        <h4 style="font-size: 0.9rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 8px;">
+                            <i class="fas fa-users" style="color: var(--primary);"></i> Student Roster (Mark Manual)
+                        </h4>
+                        <div id="roster-list" style="max-height: 250px; overflow-y: auto; background: rgba(0,0,0,0.02); border-radius: 12px; padding: 10px;">
+                            <!-- Students will be listed here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Student Dashboard -->
+            <div id="student-dashboard-view" class="view" style="display: none;">
+                <div class="stats-grid">
+                    <div class="card stat-card">
+                        <div class="stat-icon"><i class="fas fa-calendar-check"></i></div>
+                        <div class="stat-info">
+                            <h4>My Attendance</h4>
+                            <div class="stat-value" id="std-stat-total">0 Sessions</div>
+                        </div>
+                    </div>
+                    <div class="card stat-card">
+                        <div class="stat-icon" style="color: var(--secondary); background: rgba(59, 130, 246, 0.1);"><i class="fas fa-id-badge"></i></div>
+                        <div class="stat-info">
+                            <h4>Status</h4>
+                            <div class="stat-value" id="std-stat-status" style="font-size: 1.2rem; margin-top: 8px;">VERIFIED ACCOUNT</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Cumulative Attendance Report -->
+                <div class="card glass-card" style="margin: 1.5rem 0; padding:0; overflow:hidden;">
+                    <div class="card-corners">
+                        <div class="corner tl"></div><div class="corner tr"></div>
+                        <div class="corner bl"></div><div class="corner br"></div>
+                    </div>
+                    <div class="report-header" style="background: linear-gradient(90deg, #1e293b, #334155); padding: 1.2rem 1.5rem; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                        <div style="width: 32px; height: 32px; background: var(--primary); border-radius: 8px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 10px rgba(37,99,235,0.3);">
+                            <i class="fas fa-chart-line" style="color: #fff; font-size: 0.9rem;"></i>
+                        </div>
+                        <div>
+                            <h3 style="margin:0; font-size: 1rem; color: #fff; letter-spacing: 0.5px;">CUMULATIVE ATTENDANCE REPORT</h3>
+                            <p style="margin:0; font-size: 0.65rem; color: rgba(255,255,255,0.5); text-transform: uppercase; font-weight: 700;">Academic Performance Monitoring</p>
+                        </div>
+                    </div>
+                    
+                    <div class="table-container" style="padding: 0 1.5rem 1.5rem 1.5rem;">
+                        <table class="data-table">
+                            <thead>
+                                <tr style="background: transparent;">
+                                    <th style="width: 40px; padding-left: 0;">#</th>
+                                    <th>Course / Subject</th>
+                                    <th style="text-align: center;">Held</th>
+                                    <th style="text-align: center;">Present</th>
+                                    <th>Attendance</th>
+                                    <th style="text-align: center;">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="student-cumulative-body">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="card glass-card">
+                    <div class="card-corners">
+                        <div class="corner tl"></div>
+                        <div class="corner tr"></div>
+                        <div class="corner bl"></div>
+                        <div class="corner br"></div>
+                    </div>
+                    <h3>Recent Activity Log</h3>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Date & Time</th>
+                                    <th>Class Name</th>
+                                    <th>Subject</th>
+                                    <th>Faculty</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="student-attendance-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Date-wise Attendance View -->
+            <div id="date-wise-attendance-view" class="view" style="display: none;">
+                <div class="card glass-card">
+                    <div class="card-corners">
+                        <div class="corner tl"></div><div class="corner tr"></div>
+                        <div class="corner bl"></div><div class="corner br"></div>
+                    </div>
+                    <h3><i class="fas fa-calendar-day" style="color: var(--primary);"></i> Date wise Attendance</h3>
+                    <div class="input-group" style="max-width: 300px; margin-top: 1.5rem;">
+                        <label>Select Date</label>
+                        <input type="date" id="attendance-date-input" onchange="loadDateWiseAttendance(this.value)" style="background: rgba(255,255,255,0.7); border: 1px solid rgba(37,99,235,0.1); border-radius: 8px; padding: 10px; color: var(--text-dark);">
+                    </div>
+                    <div class="table-container" style="margin-top: 1.5rem;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Subject</th>
+                                    <th>Status</th>
+                                    <th>Time</th>
+                                    <th>Faculty</th>
+                                </tr>
+                            </thead>
+                            <tbody id="date-wise-body">
+                                <tr><td colspan="4" style="text-align:center; padding: 2rem; color: var(--text-muted);">Select a date to view attendance records.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Day-wise Attendance View -->
+            <div id="day-wise-attendance-view" class="view" style="display: none;">
+                <div class="card glass-card">
+                    <div class="card-corners">
+                        <div class="corner tl"></div><div class="corner tr"></div>
+                        <div class="corner bl"></div><div class="corner br"></div>
+                    </div>
+                    <h3><i class="fas fa-calendar-week" style="color: var(--primary);"></i> Day wise Attendance</h3>
+                    <div class="input-group" style="max-width: 300px; margin-top: 1.5rem;">
+                        <label>Select Day</label>
+                        <select id="attendance-day-input" onchange="loadDayWiseAttendance(this.value)">
+                            <option value="">Select Day...</option>
+                            <option value="Monday">Monday</option>
+                            <option value="Tuesday">Tuesday</option>
+                            <option value="Wednesday">Wednesday</option>
+                            <option value="Thursday">Thursday</option>
+                            <option value="Friday">Friday</option>
+                            <option value="Saturday">Saturday</option>
+                        </select>
+                    </div>
+                    <div class="table-container" style="margin-top: 1.5rem;">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Subject</th>
+                                    <th>Frequency</th>
+                                    <th>Last Present</th>
+                                </tr>
+                            </thead>
+                            <tbody id="day-wise-body">
+                                <tr><td colspan="3" style="text-align:center; padding: 2rem; color: var(--text-muted);">Select a day to analysis your attendance patterns.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Other views follow the same card pattern... -->
+            <div id="manage-classes-view" class="view" style="display: none;">
+                <div class="card glass-card">
+                    <div class="card-corners">
+                        <div class="corner tl"></div>
+                        <div class="corner tr"></div>
+                        <div class="corner bl"></div>
+                        <div class="corner br"></div>
+                    </div>
+                    <h3>Add New Class Instance</h3>
+                    <form onsubmit="addClass(event)" class="grid-2">
+                        <div class="input-group"><label>Full Class Name</label><input type="text" id="cls-name" required></div>
+                        <div class="input-group"><label>Identifier Code</label><input type="text" id="cls-short" required></div>
+                        <button type="submit" class="btn btn-primary" style="grid-column: span 2;">Generate Registry</button>
+                    </form>
+                </div>
+                <div class="card glass-card">
+                    <div class="card-corners">
+                        <div class="corner tl"></div>
+                        <div class="corner tr"></div>
+                        <div class="corner bl"></div>
+                        <div class="corner br"></div>
+                    </div>
+                    <h3>Academic Class Registry</h3>
+                    <div class="table-container">
+                        <table>
+                            <thead><tr><th>ID</th><th>Class Name</th><th>Code</th><th>Capacity</th><th>Action</th></tr></thead>
+                            <tbody id="table-classes"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+
+
+            <div id="manage-teachers-view" class="view" style="display: none;">
+                <div class="card glass-card">
+                    <div class="card-corners">
+                        <div class="corner tl"></div>
+                        <div class="corner tr"></div>
+                        <div class="corner bl"></div>
+                        <div class="corner br"></div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <div style="background: rgba(37,99,235,0.1); color: var(--primary); width: 45px; height: 45px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.25rem;">
+                                <i class="fas fa-address-book"></i>
+                            </div>
+                            <div>
+                                <h3 style="margin: 0; font-size: 1.25rem; font-weight: 800; letter-spacing: -0.5px;">Faculty Directory</h3>
+                                <p id="faculty-count-badge" style="margin: 0; font-size: 0.75rem; color: var(--primary); font-weight: 800; text-transform: uppercase;">0 AUTHORIZED FACULTY</p>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary" onclick="showView('faculty-registration')" style="padding: 10px 20px; font-size: 0.85rem;">
+                            <i class="fas fa-plus-circle"></i> Add Faculty
+                        </button>
+                    </div>
+                    <div class="table-container">
+                        <table class="premium-table">
+                            <thead>
+                                <tr>
+                                    <th>Faculty Profile</th>
+                                    <th>Username</th>
+                                    <th>Courses & Subjects</th>
+                                    <th>Permission State</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="table-teachers"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="teacher-assignments-view" class="view" style="display: none;">
+                <div class="card glass-card">
+                    <div class="card-corners">
+                        <div class="corner tl"></div>
+                        <div class="corner tr"></div>
+                        <div class="corner bl"></div>
+                        <div class="corner br"></div>
+                    </div>
+                    <h3>Subject Allocation</h3>
+                    <form onsubmit="assignTeacher(event)" class="grid-2">
+                        <div class="input-group"><label>Select Faculty</label><select id="asgn-teacher" required></select></div>
+                        <div class="input-group"><label>Assign Class</label><select id="asgn-class" required></select></div>
+                        <div class="input-group" style="grid-column: span 2;"><label>Specify Subject</label><select id="asgn-subject" required></select></div>
+                        <button type="submit" class="btn btn-primary" style="grid-column: span 2;">Link Allocation</button>
+                    </form>
+                </div>
+                <div class="card glass-card">
+                    <div class="card-corners">
+                        <div class="corner tl"></div>
+                        <div class="corner tr"></div>
+                        <div class="corner bl"></div>
+                        <div class="corner br"></div>
+                    </div>
+                    <h3>Global Assignment Map</h3>
+                    <div class="table-container">
+                        <table>
+                            <thead><tr><th>ID</th><th>Faculty</th><th>Class</th><th>Subject</th><th>Action</th></tr></thead>
+                            <tbody id="table-assignments"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="manage-subjects-view" class="view" style="display: none;">
+                <div class="card glass-card">
+                    <div class="card-corners">
+                        <div class="corner tl"></div>
+                        <div class="corner tr"></div>
+                        <div class="corner bl"></div>
+                        <div class="corner br"></div>
+                    </div>
+                    <h3>Register Academic Subject</h3>
+                    <form onsubmit="addSubject(event)" class="grid-2">
+                        <div class="input-group"><label>Subject Name</label><input type="text" id="sub-name" required placeholder="e.g. Computer Networks"></div>
+                        <div class="input-group"><label>Subject Code</label><input type="text" id="sub-code" required placeholder="e.g. BCA101" pattern="[A-Za-z]+\d+" title="Code should be like BCA101 (Letters followed by numbers)"></div>
+                        <button type="submit" class="btn btn-primary" style="grid-column: span 2;">Register Subject</button>
+                    </form>
+                </div>
+                <div class="card glass-card">
+                    <div class="card-corners">
+                        <div class="corner tl"></div>
+                        <div class="corner tr"></div>
+                        <div class="corner bl"></div>
+                        <div class="corner br"></div>
+                    </div>
+                    <h3>Curriculum Repository</h3>
+                    <div class="table-container">
+                        <table>
+                            <thead><tr><th>ID</th><th>Code</th><th>Name</th><th>Action</th></tr></thead>
+                            <tbody id="table-subjects"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="manage-students-view" class="view" style="display: none;">
+                <div class="card glass-card">
+                    <div class="card-corners">
+                        <div class="corner tl"></div>
+                        <div class="corner tr"></div>
+                        <div class="corner bl"></div>
+                        <div class="corner br"></div>
+                    </div>
+                    <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 2rem;">
+                        <h3 style="margin: 0; font-size: 1.1rem; flex: 1;">
+                            <i class="fas fa-fingerprint" style="color: var(--primary);"></i> 
+                            Biometric Student Registry
+                        </h3>
+                        
+                        <div style="display: flex; gap: 8px; align-items: center; background: rgba(30, 41, 59, 0.4); padding: 5px 12px; border-radius: 12px; border: 1px solid var(--accent-cyan); box-shadow: 0 0 10px rgba(0, 255, 255, 0.1);">
+                            <i class="fas fa-filter" style="font-size: 0.75rem; color: var(--accent-cyan);"></i>
+                            <select id="student-course-filter" onchange="filterStudentsByClass(this.value)" style="background: transparent; border: none; color: #fff; font-size: 0.82rem; font-weight: 600; cursor: pointer; outline: none; padding-right: 5px; min-width: 140px;">
+                                <option value="" style="background: var(--bg-dark);">-- Select Course --</option>
+                            </select>
+                        </div>
+
+                        <button class="btn btn-outline" style="padding: 6px 14px; font-size: 0.75rem; border-radius: 12px;" onclick="loadStudentsGlobally()">
+                            <i class="fas fa-sync-alt"></i> Refresh
+                        </button>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead><tr><th>UID</th><th>Name</th><th>Roll</th><th>Class</th><th>State</th><th>Actions</th></tr></thead>
+                            <tbody id="student-db-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="reports-view" class="view" style="display: none;">
+                <div class="card glass-card">
+                    <div class="card-corners">
+                        <div class="corner tl"></div>
+                        <div class="corner tr"></div>
+                        <div class="corner bl"></div>
+                        <div class="corner br"></div>
+                    </div>
+                    <h3>Intelligence Data Export</h3>
+                    <div class="table-container">
+                        <table>
+                            <thead><tr><th>ID</th><th>Student</th><th>Class</th><th>Subject</th><th>Faculty</th><th>Timestamp</th><th>Status</th></tr></thead>
+                            <tbody id="attendance-table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="student-profile-view" class="view" style="display: none;">
+                <div class="card glass-card" style="max-width: 800px; margin: 0 auto;">
+                    <div class="card-corners">
+                        <div class="corner tl"></div>
+                        <div class="corner tr"></div>
+                        <div class="corner bl"></div>
+                        <div class="corner br"></div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 2rem; margin-bottom: 2rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 1.5rem;">
+                        <div id="profile-avatar" style="width: 100px; height: 100px; background: var(--primary); border-radius: 20px; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; color: #000; font-weight: 800; box-shadow: 0 0 20px var(--primary-shadow);">
+                            ?
+                        </div>
+                        <div>
+                            <h2 id="profile-name" style="margin: 0; font-size: 1.5rem; color: #fff;">Student Name</h2>
+                            <p id="profile-enrollment" style="margin: 5px 0 0; color: var(--primary); font-family: monospace; font-weight: 700;">#ENROLLMENT</p>
+                            <span id="profile-status" class="badge" style="margin-top: 10px; background: var(--success); color: #fff; font-size: 0.6rem;">VERIFIED ACCOUNT</span>
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                        <div class="profile-info-group">
+                            <label style="display: block; font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">Academic Course</label>
+                            <div id="profile-course" style="font-weight: 600; color: #e2e8f0;">N/A</div>
+                        </div>
+                        <div class="profile-info-group">
+                            <label style="display: block; font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">Date of Birth</label>
+                            <div id="profile-dob" style="font-weight: 600; color: #e2e8f0;">N/A</div>
+                        </div>
+                        <div class="profile-info-group">
+                            <label style="display: block; font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">Email Address</label>
+                            <div id="profile-email" style="font-weight: 600; color: #e2e8f0;">N/A</div>
+                        </div>
+                        <div class="profile-info-group">
+                            <label style="display: block; font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">Contact Number</label>
+                            <div id="profile-phone" style="font-weight: 600; color: #e2e8f0;">N/A</div>
+                        </div>
+                        <div class="profile-info-group">
+                            <label style="display: block; font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">Username</label>
+                            <div id="profile-username" style="font-weight: 600; color: #e2e8f0;">N/A</div>
+                        </div>
+                        <div class="profile-info-group">
+                            <label style="display: block; font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">System UID</label>
+                            <div id="profile-id" style="font-weight: 600; color: #e2e8f0;">N/A</div>
+                        </div>
+                    </div>
+                    <div class="profile-info-group" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.05);">
+                        <label style="display: block; font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">Home Address</label>
+                        <div id="profile-address" style="font-weight: 600; color: #e2e8f0; line-height: 1.6;">N/A</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Notification Engine -->
+    <div id="toast" style="position: fixed; bottom: 2rem; right: 2rem; background: #1e293b; color: #fff; padding: 1rem 2rem; border-radius: 8px; font-weight: 600; transform: translateY(200%); transition: 0.3s; z-index: 9999; box-shadow: var(--shadow-lg);"></div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+
+</html>

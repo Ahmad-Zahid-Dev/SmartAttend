@@ -1,0 +1,15 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Run Flask App (System Python)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/app.py",
+      "console": "integratedTerminal",
+      "python": "python",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": true
+    }
+  ]
+}
