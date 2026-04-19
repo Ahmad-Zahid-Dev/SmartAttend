@@ -413,8 +413,8 @@ def api_capture_frame():
         try:
             pred_label, pred_conf = dup_recog.predict(face_proc)
             candidate_sid = str(label_map.get(pred_label, ''))
-            # Lower confidence is better in LBPH; 58 is strict enough for same-person blocking.
-            if candidate_sid and candidate_sid != str(student_id) and pred_conf < 58:
+            # Lower confidence is better in LBPH; tuned higher for stricter duplicate blocking.
+            if candidate_sid and candidate_sid != str(student_id) and pred_conf < 88:
                 duplicate_sid = candidate_sid
                 duplicate_conf = float(pred_conf)
         except Exception:
@@ -422,7 +422,7 @@ def api_capture_frame():
 
     # Fallback to engine model if dataset-guard could not decide.
     if duplicate_sid is None and engine.model_loaded:
-        is_dup, matched_id, conf = engine.check_duplicate(face_roi, threshold=42)
+        is_dup, matched_id, conf = engine.check_duplicate(face_roi, threshold=78)
         if is_dup and str(matched_id) != str(student_id):
             duplicate_sid = str(matched_id)
             duplicate_conf = float(conf)
@@ -430,7 +430,7 @@ def api_capture_frame():
     if duplicate_sid is not None:
         hits = _browser_duplicate_hits.get(dup_key, 0) + 1
         _browser_duplicate_hits[dup_key] = hits
-        if hits >= 2:
+        if hits >= 3:
             matched_student = db.get_student_by_id(str(duplicate_sid)) or {}
             return jsonify({
                 'success': False,
